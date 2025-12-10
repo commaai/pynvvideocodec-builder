@@ -1,0 +1,58 @@
+diff --git a/src/PyNvVideoCodec/inc/DLPackUtils.hpp b/src/PyNvVideoCodec/inc/DLPackUtils.hpp
+index 4ef4d98..7008be4 100644
+--- a/src/PyNvVideoCodec/inc/DLPackUtils.hpp
++++ b/src/PyNvVideoCodec/inc/DLPackUtils.hpp
+@@ -52,6 +52,8 @@ public:
+     const DLTensor &operator*() const;
+     DLTensor       &operator*();
+ 
++    void SetDeleter(void (*deleter)(DLManagedTensor*));
++
+ private:
+     DLManagedTensor m_tensor;
+ };
+diff --git a/src/PyNvVideoCodec/src/DLPackUtils.cpp b/src/PyNvVideoCodec/src/DLPackUtils.cpp
+index d7f3259..deef16c 100644
+--- a/src/PyNvVideoCodec/src/DLPackUtils.cpp
++++ b/src/PyNvVideoCodec/src/DLPackUtils.cpp
+@@ -186,6 +186,11 @@ const DLTensor &DLPackTensor::operator*() const
+     return m_tensor.dl_tensor;
+ }
+ 
++void DLPackTensor::SetDeleter(void (*deleter)(DLManagedTensor*))
++{
++    m_tensor.deleter = deleter;
++}
++
+ DLTensor &DLPackTensor::operator*()
+ {
+     return m_tensor.dl_tensor;
+diff --git a/src/PyNvVideoCodec/src/ExternalBuffer.cpp b/src/PyNvVideoCodec/src/ExternalBuffer.cpp
+index 36e7c6d..1a9b01a 100644
+--- a/src/PyNvVideoCodec/src/ExternalBuffer.cpp
++++ b/src/PyNvVideoCodec/src/ExternalBuffer.cpp
+@@ -34,6 +34,17 @@
+ 
+ using namespace py::literals;
+ 
++namespace
++{
++void DeleteTensorMetadata(DLManagedTensor* tensor)
++{
++    delete[] tensor->dl_tensor.shape;
++    tensor->dl_tensor.shape = nullptr;
++    delete[] tensor->dl_tensor.strides;
++    tensor->dl_tensor.strides = nullptr;
++}
++}
++
+ ExternalBuffer::ExternalBuffer(DLPackTensor &&dlTensor)
+ {
+     if (!IsCudaAccessible(dlTensor->device.device_type))
+@@ -245,5 +256,6 @@ int ExternalBuffer::LoadDLPack(std::vector<size_t> _shape, std::vector<size_t> _
+         m_dlTensor->strides[i] = _stride[i];
+     }
+ 
++    m_dlTensor.SetDeleter(&DeleteTensorMetadata);
+     return 0;
+ }
