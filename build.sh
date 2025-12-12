@@ -37,7 +37,13 @@ patch -p1 < ../patch
 
 # Run pip wheel to build the package
 echo "Building wheel..."
-mkdir -p ../build
+rm -rf ../build/
 pip wheel . --wheel-dir ../build --no-deps
 echo "Build completed successfully!"
-echo "Wheel file created in: build/"
+
+# Run auditwheel to bundle in libcudart
+echo "Repairing wheel..."
+cd ..
+auditwheel repair --exclude libavutil.so --exclude libavutil.so. --exclude libavcodec.so --exclude libavformat.so --exclude libavfilter.so --exclude libavdevice.so --exclude libswresample.so --exclude libswscale.so --exclude 'libcuda.so*' ./build/*.whl -w ./wheelhouse/
+echo "Wheel repaired successfully!"
+echo "Wheel file created in: wheelhouse/"
